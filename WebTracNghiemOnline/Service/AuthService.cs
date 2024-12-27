@@ -19,6 +19,8 @@ namespace WebTracNghiemOnline.Services
         Task<User> GetUserByIdAsync(string userId);
         Task<User> ValidateTokenAsync(string token);
         Task<string> GenerateJwtToken(User user);
+        Task<string> GeneratePasswordResetTokenAsync(User user);
+        Task<bool> ResetPasswordAsync(string email, string token, string newPassword);
     }
     public class AuthService : IAuthService
     {
@@ -125,6 +127,21 @@ namespace WebTracNghiemOnline.Services
             var tokenHandler = new JwtSecurityTokenHandler();
             return tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
         }
+
+        public async Task<string> GeneratePasswordResetTokenAsync(User user)
+        {
+            return await _userRepository.GeneratePasswordResetTokenAsync(user);
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email, string token, string newPassword)
+        {
+            var user = await _userRepository.FindByEmaiAsync(email);
+            if (user == null)
+                return false;
+
+            return await _userRepository.ResetPasswordAsync(user, token, newPassword);
+        }
+
 
     }
 

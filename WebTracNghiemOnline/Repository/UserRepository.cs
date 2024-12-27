@@ -94,7 +94,24 @@ namespace WebTracNghiemOnline.Repository
             return result.Succeeded;
         }
 
+        public async Task<string> GeneratePasswordResetTokenAsync(User user)
+        {
+            return await _userManager.GeneratePasswordResetTokenAsync(user);
+        }
 
+        public async Task<bool> ResetPasswordAsync(User user, string token, string newPassword)
+        {
+            var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+            if (!result.Succeeded)
+            {
+                Console.WriteLine("Failed to reset password:");
+                foreach (var error in result.Errors)
+                {
+                    Console.WriteLine($"Code: {error.Code}, Description: {error.Description}");
+                }
+            }
+            return result.Succeeded;
+        }
 
     }
 }

@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using WebTracNghiemOnline.DTO;
 using WebTracNghiemOnline.Repository;
+using WebTracNghiemOnline.Service;
 using WebTracNghiemOnline.Services;
 
 namespace WebTracNghiemOnline.Controllers
@@ -13,10 +14,13 @@ namespace WebTracNghiemOnline.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IUserRepository _userRepository;
-        public AuthController(IAuthService authService, IUserRepository userRepository)
+        private readonly IEmailService _emailService;
+
+        public AuthController(IAuthService authService, IUserRepository userRepository, IEmailService emailService)
         {
             _authService = authService;
             _userRepository = userRepository;
+            _emailService = emailService;
         }
         
 
@@ -140,6 +144,43 @@ namespace WebTracNghiemOnline.Controllers
             });
             return Ok(new { message = "Logged out successfully." });
         }
+
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto model)
+        {
+            if (string.IsNullOrEmpty(model.Email))
+                return BadRequest(new { message = "Email không được để trống." });
+
+            var user = await _userRepository.FindByEmaiAsync(model.Email);
+            if (user == null)
+                return NotFound(new { message = "Không tìm thấy người dùng với email này." });
+
+            var token = await _authService.GeneratePasswordResetTokenAsync(user);
+            var resetUrl = $"{Request.Scheme}://{Request.Host}/reset-password?token={token}&email={model.Email}";
+
+            var emailBody = $"<p>Chào {user.FullName},</p>" +
+                            $"<p>Vui lòng nhấn vào liên kết dưới đây để đặt lại mật khẩu của bạn:</p>" +
+                            $"<a href=\"{resetUrl}\">{resetUrl}</a>";
+
+            await _emailService.SendEmailAsync(user.Email, "Đặt lại mật khẩu", emailBody);
+
+            return Ok(new { message = "Email đặt lại mật khẩu đã được gửi." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
+        {
+            if (string.IsNullOrEmpty(model.Email) || string.IsNullOrEmpty(model.Token) || string.IsNullOrEmpty(model.NewPassword))
+                return BadRequest(new { message = "Thông tin không đầy đủ." });
+
+            var result = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
+            if (!result)
+                return BadRequest(new { message = "Đặt lại mật khẩu thất bại. Token có thể đã hết hạn hoặc không hợp lệ." });
+
+            return Ok(new { message = "Đặt lại mật khẩu thành công." });
+        }
+
 
     }
 }

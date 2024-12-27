@@ -15,6 +15,9 @@ namespace WebTracNghiemOnline.Repository
         Task<bool> UpdateAsync(User user);
         Task<User> FindByProviderAsync(string provider, string providerKey);
         Task<bool> CreateAsync(User user); // Không cần mật khẩu
+        Task<string> GeneratePasswordResetTokenAsync(User user);
+        Task<bool> ResetPasswordAsync(User user, string token, string newPassword);
+
 
         /* void UpdateAsync(Task<User> user);*/
     }
