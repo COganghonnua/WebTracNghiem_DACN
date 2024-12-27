@@ -231,6 +231,78 @@ namespace WebTracNghiemOnline.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
+        [HttpGet("{roomId}/exercise-histories")]
+        public async Task<IActionResult> GetUserExerciseHistoriesInRoom(int roomId)
+        {
+            try
+            {
+                var token = Request.Cookies["jwt"];
+                if (string.IsNullOrEmpty(token))
+                    return Unauthorized(new { message = "Token not found. Please log in." });
+
+                // Lấy thông tin currentUser từ token
+                var currentUser = await _authService.ValidateTokenAsync(token);
+
+                // Gọi service để lấy lịch sử bài tập của người dùng hiện tại
+                var histories = await _onlineRoomService.GetUserExerciseHistoriesInRoomAsync(currentUser.Id, roomId);
+                return Ok(histories);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+        [HttpGet("{roomId}/exercise-histories/all")]
+        public async Task<IActionResult> GetAllExerciseHistoriesInRoom(int roomId)
+        {
+            try
+            {
+                var token = Request.Cookies["jwt"];
+                if (string.IsNullOrEmpty(token))
+                    return Unauthorized(new { message = "Token not found. Please log in." });
+
+                var currentUser = await _authService.ValidateTokenAsync(token);
+
+                // Kiểm tra nếu user không phải là owner
+                if (!await _onlineRoomService.IsUserOwnerInRoomAsync(currentUser.Id, roomId))
+                {
+                    return StatusCode(403, new { message = "You do not have permission to view this information." });
+                }
+
+                // Lấy danh sách lịch sử bài tập phân loại theo bài tập
+                var highestScoreHistories = await _onlineRoomService.GetHighestScoreHistoriesByRoomAsync(roomId);
+
+                return Ok(highestScoreHistories); // Trả về danh sách
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("{roomId}/is-owner")]
+        public async Task<IActionResult> IsOwnerInRoom(int roomId)
+        {
+            try
+            {
+                var token = Request.Cookies["jwt"];
+                if (string.IsNullOrEmpty(token))
+                    return Unauthorized(new { message = "Token not found. Please log in." });
+
+                var currentUser = await _authService.ValidateTokenAsync(token);
+
+                // Kiểm tra nếu user là owner
+                var isOwner = await _onlineRoomService.IsUserOwnerInRoomAsync(currentUser.Id, roomId);
+
+                return Ok(new { isOwner });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+
 
     }
 

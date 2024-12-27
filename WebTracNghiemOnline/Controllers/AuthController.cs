@@ -15,12 +15,14 @@ namespace WebTracNghiemOnline.Controllers
         private readonly IAuthService _authService;
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(IAuthService authService, IUserRepository userRepository, IEmailService emailService)
+        public AuthController(IAuthService authService, IUserRepository userRepository, IEmailService emailService, IConfiguration configuration)
         {
             _authService = authService;
             _userRepository = userRepository;
             _emailService = emailService;
+            _configuration = configuration;
         }
         
 
@@ -157,8 +159,11 @@ namespace WebTracNghiemOnline.Controllers
                 return NotFound(new { message = "Không tìm thấy người dùng với email này." });
 
             var token = await _authService.GeneratePasswordResetTokenAsync(user);
-            var resetUrl = $"{Request.Scheme}://{Request.Host}/reset-password?token={token}&email={model.Email}";
-
+            Console.WriteLine("---------token: ",token);
+            // Lấy URL frontend từ cấu hình
+            var frontendUrl = _configuration["FrontendUrl"];
+            Console.WriteLine(frontendUrl);
+            var resetUrl = $"{frontendUrl}/reset-password?token={token}&email={model.Email}";
             var emailBody = $"<p>Chào {user.FullName},</p>" +
                             $"<p>Vui lòng nhấn vào liên kết dưới đây để đặt lại mật khẩu của bạn:</p>" +
                             $"<a href=\"{resetUrl}\">{resetUrl}</a>";
@@ -168,18 +173,37 @@ namespace WebTracNghiemOnline.Controllers
             return Ok(new { message = "Email đặt lại mật khẩu đã được gửi." });
         }
 
+
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
         {
             if (string.IsNullOrEmpty(model.Email) || string.IsNullOrEmpty(model.Token) || string.IsNullOrEmpty(model.NewPassword))
+            {
+                Console.WriteLine($"Dữ liệu thiếu: Email={model.Email}, Token={model.Token}, NewPassword={(string.IsNullOrEmpty(model.NewPassword) ? "EMPTY" : "PROVIDED")}");
                 return BadRequest(new { message = "Thông tin không đầy đủ." });
+            }
 
-            var result = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
-            if (!result)
-                return BadRequest(new { message = "Đặt lại mật khẩu thất bại. Token có thể đã hết hạn hoặc không hợp lệ." });
+            try
+            {
+                Console.WriteLine($"Reset password cho Email: {model.Email}, Token: {model.Token}");
+                var result = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
 
-            return Ok(new { message = "Đặt lại mật khẩu thành công." });
+                if (!result)
+                {
+                    Console.WriteLine("Reset password thất bại. Token không hợp lệ hoặc đã hết hạn.");
+                    return BadRequest(new { message = "Đặt lại mật khẩu thất bại. Token có thể đã hết hạn hoặc không hợp lệ." });
+                }
+
+                Console.WriteLine("Reset password thành công.");
+                return Ok(new { message = "Đặt lại mật khẩu thành công." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Lỗi khi đặt lại mật khẩu: {ex.Message}");
+                return StatusCode(500, new { message = "Có lỗi xảy ra.", details = ex.Message });
+            }
         }
+
 
 
     }

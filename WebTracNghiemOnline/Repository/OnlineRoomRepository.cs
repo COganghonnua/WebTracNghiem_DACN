@@ -28,7 +28,10 @@ namespace WebTracNghiemOnline.Repository
         // Lấy lịch sử bài tập của một người dùng
         Task<List<ExerciseHistory>> GetUserExerciseHistoriesAsync(string userId, int exerciseId);
         Task<List<ExerciseQuestion>> GetQuestionsWithAnswersAsync(int exerciseId);
+        Task<List<ExerciseHistory>> GetUserExerciseHistoriesInRoomAsync(string userId, int roomId);
 
+        Task<List<ExerciseHistory>> GetExerciseHistoriesByExerciseIdAsync(int exerciseId);
+        Task<List<ExerciseHistory>> GetHighestScoreHistoriesByRoomAsync(int roomId);
     }
 
     public class OnlineRoomRepository : IOnlineRoomRepository
@@ -146,7 +149,40 @@ namespace WebTracNghiemOnline.Repository
                 .ToListAsync();
         }
 
-    
+        public async Task<List<ExerciseHistory>> GetUserExerciseHistoriesInRoomAsync(string userId, int roomId)
+        {
+            return await _context.ExerciseHistories
+                .Include(eh => eh.Exercise) // Bao gồm thông tin bài tập
+                .Include(eh => eh.User) // Bao gồm thông tin người dùng
+                .Where(eh => eh.UserId == userId && eh.Exercise.OnlineRoomId == roomId)
+                .ToListAsync();
+        }
+
+        public async Task<List<ExerciseHistory>> GetExerciseHistoriesByExerciseIdAsync(int exerciseId)
+        {
+            return await _context.ExerciseHistories
+                .Include(eh => eh.User) // Bao gồm thông tin người dùng
+                .Include(eh => eh.Exercise) // Bao gồm thông tin bài tập
+                .Where(eh => eh.ExerciseId == exerciseId)
+                .ToListAsync();
+        }
+        public async Task<List<ExerciseHistory>> GetHighestScoreHistoriesByRoomAsync(int roomId)
+        {
+            var query = _context.ExerciseHistories
+                .Include(eh => eh.User) // Bao gồm thông tin người dùng
+                .Include(eh => eh.Exercise) // Bao gồm thông tin bài tập
+                .Where(eh => eh.Exercise.OnlineRoomId == roomId);
+
+            // Thực hiện nhóm và lấy bản ghi có điểm cao nhất
+            var highestScoreHistories = await query
+                .GroupBy(eh => new { eh.UserId, eh.ExerciseId }) // Nhóm theo UserId và ExerciseId
+                .Select(g => g.OrderByDescending(eh => eh.Score).FirstOrDefault()) // Lấy bản ghi có điểm cao nhất
+                .ToListAsync();
+
+            return highestScoreHistories;
+        }
+
+
 
 
     }

@@ -18,8 +18,10 @@ namespace WebTracNghiemOnline.Service
         Task<GradeResultDto> GradeExerciseAsync(string userId, int exerciseId, List<UserAnswerDto> userAnswers);
         Task<List<Exercise>> GetExercisesInRoomAsync(int roomId);
         Task<Exercise?> GetExerciseDetailsAsync(int exerciseId);
-
-
+        Task<bool> IsUserOwnerInRoomAsync(string userId, int roomId);
+        Task<List<ExerciseHistoryDto>> GetUserExerciseHistoriesInRoomAsync(string userId, int roomId);
+        Task<Dictionary<string, List<ExerciseHistoryDto>>> GetAllExerciseHistoriesByExercisesAsync(int roomId);
+        Task<List<ExerciseHistoryDto>> GetHighestScoreHistoriesByRoomAsync(int roomId);
     }
 
     public class OnlineRoomService : IOnlineRoomService
@@ -210,6 +212,46 @@ namespace WebTracNghiemOnline.Service
         public async Task<Exercise?> GetExerciseDetailsAsync(int exerciseId)
         {
             return await _repository.GetExerciseWithQuestionsAsync(exerciseId);
+        }
+
+        public async Task<List<ExerciseHistoryDto>> GetUserExerciseHistoriesInRoomAsync(string userId, int roomId)
+        {
+            var histories = await _repository.GetUserExerciseHistoriesInRoomAsync(userId, roomId);
+            return histories.Select(history => _mapper.Map<ExerciseHistoryDto>(history)).ToList();
+        }
+        public async Task<bool> IsUserOwnerInRoomAsync(string userId, int roomId)
+        {
+            var userRoom = await _repository.GetUserInRoomAsync(userId, roomId);
+            return userRoom != null && userRoom.Role == UserRole.Owner;
+        }
+        public async Task<Dictionary<string, List<ExerciseHistoryDto>>> GetAllExerciseHistoriesByExercisesAsync(int roomId)
+        {
+            // Lấy danh sách bài tập trong phòng học
+            var exercises = await _repository.GetExercisesInRoomAsync(roomId);
+
+            // Tạo dictionary để lưu lịch sử làm bài phân loại theo bài tập
+            var historiesByExercise = new Dictionary<string, List<ExerciseHistoryDto>>();
+
+            foreach (var exercise in exercises)
+            {
+                // Lấy lịch sử làm bài cho từng bài tập
+                var histories = await _repository.GetExerciseHistoriesByExerciseIdAsync(exercise.ExerciseId);
+
+                // Map sang DTO
+                var historyDtos = histories.Select(history => _mapper.Map<ExerciseHistoryDto>(history)).ToList();
+
+                // Thêm vào dictionary (key là tên bài tập)
+                historiesByExercise[exercise.ExerciseName] = historyDtos;
+            }
+
+            return historiesByExercise;
+        }
+        public async Task<List<ExerciseHistoryDto>> GetHighestScoreHistoriesByRoomAsync(int roomId)
+        {
+            var histories = await _repository.GetHighestScoreHistoriesByRoomAsync(roomId);
+
+            // Map dữ liệu sang DTO
+            return histories.Select(history => _mapper.Map<ExerciseHistoryDto>(history)).ToList();
         }
 
 

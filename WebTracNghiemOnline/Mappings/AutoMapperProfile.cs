@@ -91,6 +91,15 @@ namespace WebTracNghiemOnline.Mappings
 
             CreateMap<FileAttachment, FileAttachmentDto>();
 
+            CreateMap<ExerciseHistory, ExerciseHistoryDto>()
+                .ForMember(dest => dest.ExerciseName, opt => opt.MapFrom(src => src.Exercise.ExerciseName)) // Tên bài tập
+                .ForMember(dest => dest.StartTime, opt => opt.MapFrom(src => src.StartTime)) // Thời gian bắt đầu
+                .ForMember(dest => dest.EndTime, opt => opt.MapFrom(src => src.EndTime)) // Thời gian kết thúc
+                .ForMember(dest => dest.Score, opt => opt.MapFrom(src => src.Score)) // Điểm số
+                .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User.FullName)); // Lấy tên sinh viên
+
+
+
         }
     }
 }

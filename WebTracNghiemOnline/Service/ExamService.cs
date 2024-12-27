@@ -15,6 +15,8 @@ namespace WebTracNghiemOnline.Service
         Task<(bool Success, string Message, dynamic Data)> SubmitExamAsync(int examId, string userId, SubmitExamDto submitExamDto);
         Task<(bool Success, string Message, int Score)>CheckExamAnswersAsync(ExamSubmissionDto examSubmission);
         Task<(bool Success, string Message, object? Data)> GetExamHistoryDetailsAsync(int examHistoryId, string userId);
+        Task<(bool Success, string Message, decimal RemainingBalance)> StartExamAsync(int examId, string userId);
+
     }
 
     public class ExamService : IExamService
@@ -23,13 +25,15 @@ namespace WebTracNghiemOnline.Service
         private readonly IExamRepository _examRepository;
         private readonly IAnswerRepository _answerRepository;
         private readonly IMapper _mapper;
+        private readonly IUserRepository _userRepository;
 
-        public ExamService(IQuestionRepository questionRepository, IExamRepository examRepository,IAnswerRepository answerRepository, IMapper mapper)
+        public ExamService(IQuestionRepository questionRepository, IExamRepository examRepository,IAnswerRepository answerRepository, IMapper mapper,IUserRepository userRepository)
         {
             _questionRepository = questionRepository;
             _examRepository = examRepository;
             _answerRepository = answerRepository;
             _mapper = mapper;
+            _userRepository = userRepository;
         }
 
         public async Task<(bool Success, string Message, object Data)> CreateRandomExamAsync(CreateExamDto dto, NumberOfQuestionsDto numberOfQuestions)
@@ -266,8 +270,45 @@ namespace WebTracNghiemOnline.Service
 
             return (true, "History retrieved successfully.", result);
         }
+        public async Task<(bool Success, string Message, decimal RemainingBalance)> StartExamAsync(int examId, string userId)
+        {
+            var exam = await _examRepository.GetExamByIdAsync(examId);
+            if (exam == null)
+            {
+                return (false, "Exam not found.", 0);
+            }
 
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return (false, "User not found.", 0);
+            }
 
+            var userBalance = user.Balance ?? 0;
+
+            // Kiểm tra số dư và cảnh báo trước
+            if (userBalance < exam.Fee)
+            {
+                return (false, $"You have insufficient balance ({userBalance} VND) to start this exam. Fee required: {exam.Fee} VND.", userBalance);
+            }
+
+            // Kiểm tra nếu đã bắt đầu bài thi trước đó
+            var existingExamHistory = await _examRepository.GetExamHistoryDetailsAsync(examId, userId);
+            if (existingExamHistory != null)
+            {
+                return (false, "You have already started this exam.", userBalance);
+            }
+
+            // Cảnh báo trước khi trừ tiền (có thể thêm bước xác nhận trước khi thực sự trừ)
+            user.Balance = userBalance - exam.Fee;
+            var updateSuccess = await _userRepository.UpdateAsync(user);
+            if (!updateSuccess)
+            {
+                return (false, "Failed to update your balance.", userBalance);
+            }
+
+            return (true, "Exam started successfully. Your remaining balance is:", user.Balance ?? 0);
+        }
 
 
 

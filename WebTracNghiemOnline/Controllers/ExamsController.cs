@@ -137,6 +137,45 @@ namespace WebTracNghiemOnline.Controllers
             return Ok(result.Data);
         }
 
+        [HttpPost("{id}/start")]
+        [Authorize]
+        public async Task<IActionResult> StartExam(int id)
+        {
+            try
+            {
+                // Lấy ID người dùng từ JWT
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "User not authenticated." });
+                }
+
+                // Gọi service để bắt đầu bài thi
+                var result = await _examService.StartExamAsync(id, userId);
+                if (!result.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = result.Message,
+                        balance = result.RemainingBalance // Trả về số dư hiện tại nếu không đủ
+                    });
+                }
+
+                // Trả về số dư sau khi trừ tiền
+                return Ok(new
+                {
+                    success = true,
+                    message = "Exam started successfully.",
+                    balance = result.RemainingBalance
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred.", details = ex.Message });
+            }
+        }
+
 
     }
 

@@ -79,7 +79,19 @@ namespace WebTracNghiemOnline.Controllers
             }
 
             var token = await _authService.GenerateJwtToken(user);
-            return Ok(new { Token = token });
+
+            // Lưu token vào cookie
+            Response.Cookies.Append("jwt", token, new CookieOptions
+            {
+                HttpOnly = true,        // Ngăn chặn truy cập từ JavaScript
+                SameSite = SameSiteMode.None, // Hỗ trợ cross-origin
+                Secure = true,          // Yêu cầu HTTPS
+                Expires = DateTime.UtcNow.AddMinutes(60) // Hết hạn sau 60 phút
+            });
+
+            return Redirect("https://localhost:5173"); 
         }
+
+
     }
 }
